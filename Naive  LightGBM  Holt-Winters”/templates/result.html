@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Forecast Result</title>
+<style>
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#f4f6f8; color:#333; margin:0; padding:0; line-height:1.6; }
+  .header { display:flex; justify-content:space-between; align-items:center; background-color:#2c3e50; color:white; padding:15px 30px; box-shadow:0 2px 6px rgba(0,0,0,0.2);}
+  .header h1 { font-size:1.8rem; margin:0; }
+  .user-profile { display:flex; align-items:center; position:relative; cursor:pointer; }
+  
+  h2, h3 { color:#2c3e50; }
+  h1.page-title { text-align:center; margin:20px 0; }
+
+  select, input, button { padding:10px; border-radius:6px; border:1px solid #ccc; font-size:1rem; margin:0 10px 20px 0; }
+  button { background-color:#4a90e2; color:#fff; font-weight:600; cursor:pointer; }
+  button:hover { background-color:#357ABD; }
+
+  table { width:100%; border-collapse:collapse; margin-bottom:20px; box-shadow:0 3px 8px rgba(0,0,0,0.1); border-radius:8px; background:white; }
+  th, td { border:1px solid #ddd; padding:12px 10px; text-align:center; font-size:0.95rem; white-space:nowrap; }
+  th { background-color:#ecf0f1; font-weight:600; color:#2c3e50; }
+  td:nth-last-child(1), th:nth-last-child(1) { font-weight:600; background-color:#dff0d8; }
+
+  .filter-container { margin:20px auto; text-align:center; }
+  .pagination { text-align:center; margin:20px 0; }
+  .pagination a { margin:0 5px; padding:8px 16px; border-radius:6px; text-decoration:none; background-color:#4a90e2; color:white; font-weight:600; }
+  .pagination a:hover { background-color:#357ABD; }
+
+  .btn-upload { text-align:center; margin-bottom:30px; }
+  .btn-upload a { text-decoration:none; background-color:#27ae60; color:#fff; padding:12px 24px; border-radius:6px; font-weight:600; }
+  .btn-upload a:hover { background-color:#1e8449; }
+
+  .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5);}
+  .modal-content { background:#fff; margin:5% auto; padding:20px; border-radius:10px; width:80%; max-width:900px; text-align:center;}
+  .close { float:right; font-size:24px; font-weight:bold; cursor:pointer;}
+  .scroll-table { max-height:400px; overflow-y:auto; margin-top:10px; border:1px solid #ddd;}
+  .scroll-table table { width:100%; border-collapse:collapse; }
+
+  /* Dropdown Menu */
+  .dropdown-menu { display:none; position:absolute; right:0; top:50px; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.2); border-radius:8px; overflow:hidden; z-index:100; min-width:150px; }
+  .dropdown-menu a { display:block; padding:10px 20px; text-decoration:none; color:#333; border-bottom:1px solid #eee; }
+  .dropdown-menu a:last-child { border-bottom:none; }
+  .dropdown-menu a:hover { background:#f0f0f0; }
+
+  /* Initials Circle */
+  .initials-circle { 
+    width:40px; height:40px; border-radius:50%; background:#4a90e2; color:white; display:flex; 
+    align-items:center; justify-content:center; font-weight:600; margin-left:10px; user-select:none;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header Bar -->
+<div class="header">
+  <h1>Forecast Dashboard</h1>
+  <div class="user-profile" id="userProfile">
+    <span>{{ session['user']['name'] if session.get('user') else 'Guest' }}</span>
+    
+    <!-- Show initials -->
+    {% set initials = (session.get('user', {}).get('username', 'G')[0].upper()) %}
+    <div id="avatarBtn" class="initials-circle" title="User Initials">
+      {{ initials }}
+    </div>
+
+    <!-- Dropdown -->
+    <div class="dropdown-menu" id="avatarDropdown">
+      <a href="{{ url_for('home') }}">Home</a>
+      <a href="{{ url_for('auth.logout') }}">Logout</a>
+    </div>
+  </div>
+</div>
+
+<h1 class="page-title">LightGBM Multi-Horizon Forecast</h1>
+<p style="text-align:center;">Forecast for each product over the next 14 days</p>
+
+<!-- Filter Form -->
+<div class="filter-container">
+  <form method="get" action="{{ url_for('show_results') }}">
+    <label for="outletSelect">Outlet:</label>
+    <select id="outletSelect" name="outlet">
+      <option value="all" {% if selected_outlet == 'all' %}selected{% endif %}>All</option>
+      {% for outlet in outlets %}
+        <option value="{{ outlet['outlet_name'] }}" {% if selected_outlet == outlet['outlet_name'] %}selected{% endif %}>
+          {{ outlet['outlet_name'] }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <input type="text" name="variant_name" placeholder="Search Variant Name" value="{{ filter_variant_name }}">
+    <input type="text" name="product_id" placeholder="Search Product ID" value="{{ filter_product_id }}">
+    <input type="text" name="product_attribute" placeholder="Search Attribute" value="{{ filter_product_attr }}">
+    <input type="text" name="product_type" placeholder="Search Product Type" value="{{ filter_product_type }}">
+    <button type="submit">Apply</button>
+  </form>
+</div>
+
+<!-- Show Metrics Button -->
+<div style="text-align:center; margin-bottom:20px;">
+  <button id="metricsBtn">Show Metrics</button>
+</div>
+
+<!-- Forecast Table -->
+<div id="forecastTable">
+    {{ forecast_table | safe }}
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div class="pagination">
+  {% if page > 1 %}
+    <a href="{{ url_for('show_results', page=page-1, outlet=selected_outlet,
+                          variant_name=filter_variant_name, product_id=filter_product_id,
+                          product_attribute=filter_product_attr, product_type=filter_product_type) }}">
+      &laquo; Prev
+    </a>
+  {% endif %}
+  <span>Page {{ page }} of {{ total_pages }}</span>
+  {% if page < total_pages %}
+    <a href="{{ url_for('show_results', page=page+1, outlet=selected_outlet,
+                          variant_name=filter_variant_name, product_id=filter_product_id,
+                          product_attribute=filter_product_attr, product_type=filter_product_type) }}">
+      Next &raquo;
+    </a>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Upload Another File -->
+<div class="btn-upload">
+  <a href="{{ url_for('home', upload=1) }}">Upload Another File</a>
+</div>
+
+<!-- Metrics Modal -->
+<div id="metricsModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>Model Performance Metrics</h2>
+
+    <h3>Overall (All Horizons Combined)</h3>
+    <div style="display:flex; gap:20px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:280px;">
+        <h4>Train</h4>
+        <table class="table table-striped">
+          <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+          <tbody id="overallTrainBody"></tbody>
+        </table>
+      </div>
+      <div style="flex:1; min-width:280px;">
+        <h4>Validation</h4>
+        <table class="table table-striped">
+          <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+          <tbody id="overallValBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <h3>Per Horizon</h3>
+    <div class="scroll-table">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Horizon</th>
+            <th>Set</th>
+            <th>MAE</th>
+            <th>MSE</th>
+            <th>RMSE</th>
+            <th>MAPE</th>
+            <th>R2</th>
+          </tr>
+        </thead>
+        <tbody id="perHorizonBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// Avatar dropdown
+const avatarBtn = document.getElementById("avatarBtn");
+const avatarDropdown = document.getElementById("avatarDropdown");
+avatarBtn.addEventListener("click", e => { e.stopPropagation(); avatarDropdown.style.display = avatarDropdown.style.display === "block" ? "none" : "block"; });
+window.addEventListener("click", () => { avatarDropdown.style.display = "none"; });
+
+// Metrics Modal
+document.getElementById("metricsBtn").onclick = function() {
+  fetch("/api/metrics")
+    .then(res => res.json())
+    .then(data => {
+      if(data.error){ alert(data.error); return; }
+      renderKeyVals("overallTrainBody",(data.overall||{}).train);
+      renderKeyVals("overallValBody",(data.overall||{}).validation);
+      renderPerHorizon("perHorizonBody",data.per_horizon||{});
+      document.getElementById("metricsModal").style.display="block";
+    })
+    .catch(err=>{ console.error(err); alert("Failed to load metrics."); });
+};
+document.querySelector(".close").onclick = () => { document.getElementById("metricsModal").style.display="none"; };
+window.onclick = e => { if(e.target.id==="metricsModal") document.getElementById("metricsModal").style.display="none"; };
+
+// Render functions
+function renderKeyVals(tbodyId,obj){
+  const tbody=document.getElementById(tbodyId); tbody.innerHTML="";
+  if(!obj) return;
+  Object.keys(obj).forEach(k=>{
+    const v=obj[k]; const val=(typeof v==="number")?v.toFixed(k==="MAPE"?2:4):String(v);
+    tbody.insertAdjacentHTML("beforeend", `<tr><td>${k}</td><td>${val}</td></tr>`);
+  });
+}
+function renderPerHorizon(tbodyId,perH){
+  const tbody=document.getElementById(tbodyId); tbody.innerHTML="";
+  if(!perH||!perH.train||!perH.validation) return;
+  const horizons=new Set([...Object.keys(perH.train),...Object.keys(perH.validation)]);
+  const order=Array.from(horizons).sort((a,b)=>parseInt(a.replace('t+',''))-parseInt(b.replace('t+','')));
+  order.forEach(h=>{
+    ["train","validation"].forEach(split=>{
+      const m=perH[split][h]||{};
+      const fmt=(x,isMAPE=false)=>{ const n=Number(x); return Number.isFinite(n)?(isMAPE?n.toFixed(2):n.toFixed(4)):x; };
+      tbody.insertAdjacentHTML("beforeend",
+        `<tr>
+          <td>${h}</td>
+          <td>${split}</td>
+          <td>${fmt(m.MAE)}</td>
+          <td>${fmt(m.MSE)}</td>
+          <td>${fmt(m.RMSE)}</td>
+          <td>${fmt(m.MAPE,true)}</td>
+          <td>${fmt(m.R2)}</td>
+        </tr>`
+      );
+    });
+  });
+}
+</script>
+
+</body>
+</html>
