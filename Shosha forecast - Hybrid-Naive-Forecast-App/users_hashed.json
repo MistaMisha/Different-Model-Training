@@ -1,0 +1,13 @@
+[
+  {
+    "username": "admin",
+    "password": "9f2d0ea5850156f702bc2d2b422e82b82d45c0f41786dd78b26f70021ff7c90b",
+    "role": "admin"
+  },
+  {
+    "username": "store101",
+    "password": "892da11a696ed4931de68181a4b2a73ea8fce6555d22cf3d2c7770d18bf424a5",
+    "outlet_name": "Papatoetoe",
+    "role": "store_Manager"
+  }
+]

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Upload Sales CSV</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f7fc;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background: #ffffff;
+      padding: 2.5rem 3rem;
+      border-radius: 12px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+      width: 360px;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 1rem;
+      font-weight: 700;
+      color: #333;
+      font-size: 1.75rem;
+    }
+
+    p {
+      font-size: 0.9rem;
+      color: #555;
+      margin-bottom: 1.5rem;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    input[type="file"] {
+      border: 1.5px solid #ccc;
+      border-radius: 6px;
+      padding: 0.7rem 1rem;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+
+    input[type="file"]:focus,
+    input[type="file"]:hover {
+      border-color: #4a90e2;
+      outline: none;
+    }
+
+    input[type="submit"] {
+      background-color: #4a90e2;
+      color: #fff;
+      border: none;
+      padding: 0.85rem 0;
+      border-radius: 6px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      box-shadow: 0 3px 8px rgba(74, 144, 226, 0.5);
+    }
+
+    input[type="submit"]:hover {
+      background-color: #357ABD;
+      box-shadow: 0 5px 15px rgba(53, 122, 189, 0.6);
+    }
+
+    .reset-link {
+      margin-top: 1rem;
+      display: inline-block;
+      font-size: 0.9rem;
+      color: #d9534f;
+      text-decoration: none;
+    }
+
+    .reset-link:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 400px) {
+      .container {
+        width: 90%;
+        padding: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Upload Sales CSV</h1>
+    <p>CSV must contain columns: <strong>sale_id, product_id, variant_name, product_attribute</strong></p>
+
+    <!-- Upload form that POSTS to "/" -->
+    <form action="/" method="post" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".csv" required />
+      <input type="submit" value="Upload" />
+    </form>
+
+    <!-- Optional: reset model/data -->
+    <a href="/reset" class="reset-link">Reset model & data</a>
+  </div>
+</body>
+</html>
