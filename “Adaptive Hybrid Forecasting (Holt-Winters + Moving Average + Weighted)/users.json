@@ -1,0 +1,13 @@
+[
+  {
+    "username": "admin",
+    "password": "test69",
+    "role": "admin"
+  },
+  {
+    "username": "store101",
+    "password": "iloveidk120",
+    "outlet_name": "Papatoetoe",
+    "role": "store_Manager"
+  }
+]
